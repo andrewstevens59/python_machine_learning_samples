@@ -1,4 +1,4 @@
-dimport pandas as pd
+import pandas as pd
 import numpy as np
 import sys
 import math
@@ -98,14 +98,13 @@ def calcPercChange(start_time, end_time, rates):
     price = rates[(rates.index >= start_time) & (rates.index <= end_time)]['rate']
 
     if len(price) == 0:
-        return [0, 0]
+        return 0
 
-    std_price = float(np.std(price))
     end_price = float(price.iloc[len(price)-1])
 
     perc_change = (end_price - price.iloc[0]) 
 
-    return [perc_change, std_price]
+    return perc_change
 
 def lookupPCAFeatures(input_set, feature_offset, observed_days):
 
@@ -316,12 +315,12 @@ def calcArb(pair, training_set, times, calendar):
     rates.set_index('time', inplace=True)
 
     labels = {}
-    std_price = {}
+    actual_change = {}
     last_start_time = {}
     for observed_days in range(total_observed_days):
         labels[observed_days] = []
-        std_price[observed_days] = []
         last_start_time[observed_days] = []
+        actual_change[observed_days] = []
 
     price_series = []
 
@@ -339,18 +338,18 @@ def calcArb(pair, training_set, times, calendar):
         for observed_days in range(total_observed_days):
             start_time = skipBack(time - (60 * 60 * 12 * (observed_days + 1)))
 
-            [perc_change, resid] = calcPercChange(start_time, end_time, rates)
+            perc_change = calcPercChange(start_time, end_time, rates)
             labels[observed_days].append(perc_change)
             last_start_time[observed_days] = start_time
-            std_price[observed_days].append(resid)
+            
 
     pickle.dump(price_series, open(save_model_dir + "price_series", 'wb'))
+
 
     global_residuals = []
     for observed_days in range(total_observed_days):
         
         actual = labels[observed_days]
-        std_val = std_price[observed_days]
         
         if train_model == True:
 
@@ -409,7 +408,9 @@ def calcArb(pair, training_set, times, calendar):
             pickle.dump(actual, open(save_model_dir + "actual" + str(observed_days), 'wb'))
             pickle.dump(predict, open(save_model_dir + "predict" + str(observed_days), 'wb'))    
 
-            residuals = actual - predict
+            # make sure revert and follow give the same signal for direction
+            residuals = -predict 
+
 
             print "R2", r2_score(actual, predict)
 
@@ -418,30 +419,31 @@ def calcArb(pair, training_set, times, calendar):
 
             resid = (residuals[-1] - mean_resid) / std_resid
 
-            pickle.dump([(r - mean_resid) / std_resid for r in residuals], open(save_model_dir + "residuals_revert" + str(observed_days), 'wb'))
-            print save_model_dir + "residuals_revert" + str(observed_days)
+            pickle.dump([(r - mean_resid) / std_resid for r in residuals], open(save_model_dir + "residuals_future" + str(observed_days), 'wb'))
+
 
         else:
             [resid, residuals] = predictArb(pd.DataFrame.from_records(training_set, columns=range(singular_feature_num)), observed_days, actual)
 
-           
 
         # transforms percentages to price 
         price = rates[(rates.index >= last_start_time[observed_days])]['rate']
 
+        avg_price = np.mean(price)
+        std_price = np.std(price)
+
         resid_price = residuals[-1]
         
 
-        upper_price = price.iloc[len(price) - 1] - resid_price
-        lower_price = price.iloc[len(price) - 1] + (resid_price / max(1, abs(resid)))
+        upper_price = price.iloc[len(price) - 1] + resid_price
+        lower_price = price.iloc[len(price) - 1] - (resid_price / max(1, abs(resid)))
 
         global_residuals.append(resid)
 
-
         print "Final Residual: ", resid, (observed_days + 1), "days ", upper_price, "(TP)", lower_price, "(SL)"
-        
+
     mean_resid = np.mean(global_residuals)
-    
+        
     print "******** Average Residual", mean_resid, chosen_currency_pair, "********"
 
     return mean_resid
@@ -474,7 +476,6 @@ class Currencies:
         self.currency = ""
         self.avg_resid = 0
         self.num = 0
-
 
 currency_ranking = {}
 for currency in currencies:
@@ -550,5 +551,5 @@ for currency_set in currency_ranking:
 
     print line
 
-pickle.dump(overall_currency_map, open("/tmp/" + "revert_model", 'wb'))
+pickle.dump(overall_currency_map, open("/tmp/" + "trend_model", 'wb'))
 

@@ -33,31 +33,36 @@ def download_calendar(time_frame):
 	for i in range(len(j)):
 		item = j[i]
 
-
+		'''
 		if 'previous' not in item:
 			continue
+		'''
 	 
-		forecast = item['previous']
+		forecast = 0
 
+		'''
 		if re.search('[a-zA-Z]', forecast):
 			continue
+		'''
 			
 		'''
 		if 'forecast' in item:
 			forecast = item['forecast']
 		'''
 
+		'''
 		if 'actual' not in item:
 			continue
 
 		if re.search('[a-zA-Z]', item['actual']):
 			continue
+		'''
 
 		impact = 0
 		if 'impact' in item:
 			impact = item['impact']
 
-		features.append([item['currency'], impact, item['actual'], forecast, item['timestamp'], item['region']])
+		features.append([item['currency'], impact, 0, forecast, item['timestamp'], item['region']])
 
 	return features
 

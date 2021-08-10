@@ -18,6 +18,30 @@ import json
 import numpy as np
 
 
+import random
+import numpy
+from matplotlib import pyplot
+
+x =  [15, 19, 21, 23, 16]                                                                                                           
+y =  [23, 18, 17, 14, 22]
+
+x_sum = sum(x)
+y_sum = sum(y)
+
+x = [float(v) / x_sum for v in x]
+y = [float(v) / y_sum for v in y]
+
+print x
+print y
+
+
+pyplot.bar(range(len(x)), x, alpha=0.5, label='Claim Group')
+pyplot.bar(range(len(y)), y, alpha=0.5, label='Non Claim Group')
+pyplot.title('Dangerous Maneuvers')
+pyplot.legend(loc='upper right')
+pyplot.show()
+
+
 def find_avg_mov(symbol, time):
 	response_buffer = StringIO()
 	curl = pycurl.Curl()
